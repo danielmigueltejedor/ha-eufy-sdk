@@ -525,7 +525,7 @@ class EufySdkCurrentModeSensor(EufySdkDeviceEntity, SensorEntity):
     The mode a HomeBase is enforcing right now, as the SDK's mode label.
 
     Reads like the Arming Mode select, but resolves `schedule` to the slot in force
-    (from the hub's MODE_SWITCH push, else the timetable) — the old integration's
+    (from the station's timetable) — the old integration's
     `current_mode`. The set mode and the answer's source ride along as attributes.
     The timetable is resolved in HA's configured time zone, which has to match the
     station's own local time (see schedule_logic).

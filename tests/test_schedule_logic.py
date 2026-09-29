@@ -77,11 +77,15 @@ class ScheduleLogicTests(unittest.TestCase):
         for bad in (None, "x", {}, {"schedules": "x"}, {"schedules": [{"week": 4}]}):
             self.assertIsNone(schedule_logic.resolve_schedule(bad, _THU_2020))
 
-    def test_pushed_current_mode_wins_over_everything(self):
+    def test_a_stray_current_mode_is_not_trusted(self):
+        # No capture has shown a push carrying the enforced mode, so a `currentMode`
+        # in the state (from any source) doesn't override the timetable.
         state = {"armingMode": 2, "currentMode": 1, "jsonSchedule": _SCHEDULE}
-        self.assertEqual(schedule_logic.current_mode_for(state, _THU_2020), (1, "push"))
+        self.assertEqual(
+            schedule_logic.current_mode_for(state, _THU_2020), (3, "schedule")
+        )
 
-    def test_schedule_resolves_locally_before_the_first_push(self):
+    def test_schedule_resolves_locally(self):
         state = {"armingMode": 2, "jsonSchedule": _SCHEDULE}
         self.assertEqual(
             schedule_logic.current_mode_for(state, _THU_2020), (3, "schedule")
@@ -97,17 +101,11 @@ class ScheduleLogicTests(unittest.TestCase):
         )
         self.assertEqual(schedule_logic.current_mode_for({}, _THU_2020), (None, "set"))
 
-    def test_geo_stays_unknown_until_the_hub_says(self):
-        self.assertEqual(
-            schedule_logic.current_mode_for({"armingMode": 47}, _THU_2020),
-            (None, "set"),
-        )
-        self.assertEqual(
-            schedule_logic.current_mode_for(
-                {"armingMode": 47, "currentMode": 0}, _THU_2020
-            ),
-            (0, "push"),
-        )
+    def test_geo_stays_unknown(self):
+        for state in ({"armingMode": 47}, {"armingMode": 47, "currentMode": 0}):
+            self.assertEqual(
+                schedule_logic.current_mode_for(state, _THU_2020), (None, "set")
+            )
 
     def test_next_boundary_is_the_next_slot_start_or_end(self):
         nxt = schedule_logic.next_schedule_boundary

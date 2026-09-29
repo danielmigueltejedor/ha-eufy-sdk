@@ -7,16 +7,18 @@ hands it to presence. The mode the hub then enforces — the one the eufy app sh
 "current mode" and the old integration exposed as `current_mode` — is a different
 number, and it is what an automation or a dashboard usually wants.
 
-Two sources, in order of trust:
+How it is resolved, with no hub word to go on:
 
-1. the hub's own word: a MODE_SWITCH push carries `arming` (the set mode) and `mode`
-   (the enforced one) — the old client read both (`station_guard_mode` /
-   `station_current_mode`), and the SDK forwards them verbatim on `armingModeChanged`;
-   `arming_sync` stores them as `armingMode` / `currentMode`
-2. the timetable: `jsonSchedule` (param 1254) is in every cloud poll, so when the set
-   mode is `schedule` and no push has been seen yet (startup), the current slot resolves
-   it locally. Weekdays follow the hub's own convention, Sunday = 0 (the legacy client
-   builds its schedule bitmask the same way: SUNDAY = 1 << 0).
+- `schedule`: `jsonSchedule` (param 1254) is in every cloud poll, so the current slot
+  resolves it locally. Weekdays follow the hub's own convention, Sunday = 0 (the
+  legacy client builds its schedule bitmask the same way: SUNDAY = 1 << 0).
+- any other set mode IS the mode being enforced.
+
+A MODE_SWITCH push is NOT used: the legacy client names an `arming` / `mode` pair on
+it, but nothing on this stack has seen those fields. Every `armingModeChanged` logged
+on a T8030 and a T9000 over a day, including across a timetable slot boundary, arrived
+as `{event, deviceSn}` only, and the hub pushed nothing at the boundary itself. So the
+timetable is the only source until a capture shows otherwise.
 
 `geo` has no local answer: presence is the hub's to judge, so until a push says which
 mode it chose the result is unknown, never `geo` itself (a rule, not a mode).
@@ -63,7 +65,6 @@ MODE_LABELS: dict[int, str] = {
     63: "disarmed",
 }
 
-SOURCE_PUSH = "push"
 SOURCE_SCHEDULE = "schedule"
 SOURCE_SET = "set"
 
@@ -125,13 +126,10 @@ def current_mode_for(state: dict[str, Any], at: datetime) -> tuple[int | None, s
     """
     Return the mode the hub is enforcing, and where that answer came from.
 
-    A `currentMode` the hub pushed wins. Otherwise a `schedule` set mode resolves
-    through the timetable, `geo` stays unknown (only the hub can say what presence
-    chose), and any other set mode IS the current mode.
+    A `schedule` set mode resolves through the timetable, `geo` stays unknown (only
+    the hub can say what presence chose, and it doesn't), and any other set mode IS
+    the current mode.
     """
-    pushed = _as_int(state.get("currentMode"))
-    if pushed is not None:
-        return pushed, SOURCE_PUSH
     set_mode = _as_int(state.get("armingMode"))
     if set_mode == MODE_SCHEDULE:
         return resolve_schedule(state.get("jsonSchedule"), at), SOURCE_SCHEDULE

@@ -73,11 +73,10 @@ templates, packages and dashboards. Worth knowing: YAML-mode dashboards under `c
 are not in `.storage`, so a sweep that only reads the entity registry will miss them.
 
 **Set mode vs current mode.** `select.X_arming_mode` is the mode the station is *set* to, so
-on Schedule it reads `schedule`. The mode it is enforcing right now is `sensor.X_current_mode`. It
-comes from the hub's push when there is one, and otherwise from the station's timetable, resolved
-in Home Assistant's configured time zone. That has to match the station's local time: with HA left
-on UTC, every slot resolves shifted by the offset. On Geo it reads unknown until the hub reports
-which mode presence chose.
+on Schedule it reads `schedule`. The mode it is enforcing right now is `sensor.X_current_mode`,
+resolved from the station's timetable in Home Assistant's configured time zone. That has to match
+the station's local time: with HA left on UTC, every slot resolves shifted by the offset. On Geo it
+reads unknown, because the hub doesn't report which mode presence chose.
 
 **The two integrations keep separate device registries.** The same physical camera gets its own
 device entry under each integration, so a migration script that maps old entities to new ones by
