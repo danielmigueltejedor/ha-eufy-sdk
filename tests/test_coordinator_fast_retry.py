@@ -7,7 +7,10 @@ import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.eufy_sdk import coordinator as coord_mod
-from custom_components.eufy_sdk.api import EufySdkApiClientError
+from custom_components.eufy_sdk.api import (
+    EufySdkApiClientCommunicationError,
+    EufySdkApiClientError,
+)
 
 
 def _coordinator(client: Mock) -> coord_mod.EufySdkDataUpdateCoordinator:
@@ -40,13 +43,25 @@ class FastRetryTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_a_failed_poll_drops_the_socket_and_retries_soon(self):
         client = _client()
-        client.list_devices.side_effect = EufySdkApiClientError("timeout")
+        client.list_devices.side_effect = EufySdkApiClientCommunicationError("timeout")
         c = _coordinator(client)
 
         with pytest.raises(UpdateFailed):
             await c._async_update_data()
 
         client.reset_connection.assert_awaited_once_with()
+        self.call_later.assert_called_once()
+        self.assertEqual(self.call_later.call_args.args[1], c._FAST_RETRY_S)
+
+    async def test_an_error_reply_retries_soon_but_keeps_the_socket(self):
+        client = _client()
+        client.list_devices.side_effect = EufySdkApiClientError("devices.list failed")
+        c = _coordinator(client)
+
+        with pytest.raises(UpdateFailed):
+            await c._async_update_data()
+
+        client.reset_connection.assert_not_awaited()
         self.call_later.assert_called_once()
         self.assertEqual(self.call_later.call_args.args[1], c._FAST_RETRY_S)
 
@@ -63,7 +78,7 @@ class FastRetryTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_repeated_failures_keep_a_single_pending_retry(self):
         client = _client()
-        client.list_devices.side_effect = EufySdkApiClientError("timeout")
+        client.list_devices.side_effect = EufySdkApiClientCommunicationError("timeout")
         c = _coordinator(client)
 
         for _ in range(3):

@@ -9,7 +9,11 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import EufySdkApiClientAuthenticationError, EufySdkApiClientError
+from .api import (
+    EufySdkApiClientAuthenticationError,
+    EufySdkApiClientCommunicationError,
+    EufySdkApiClientError,
+)
 
 if TYPE_CHECKING:
     from .data import EufySdkConfigEntry
@@ -85,10 +89,13 @@ class EufySdkDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict]]):
         except EufySdkApiClientAuthenticationError as err:
             raise ConfigEntryAuthFailed(err) from err
         except EufySdkApiClientError as err:
-            # A wedged WS won't clear `connected` on its own; drop it so the fast retry
-            # reconnects fresh rather than timing out on the same dead socket.
             self._schedule_fast_retry()
-            await client.reset_connection()
+            # A wedged WS won't clear `connected` on its own; drop it so the fast retry
+            # reconnects fresh rather than timing out on the same dead socket. An error
+            # the bridge *answered* with came over a healthy socket: dropping that one
+            # would only cost a reconnect and a gap in the push stream.
+            if isinstance(err, EufySdkApiClientCommunicationError):
+                await client.reset_connection()
             raise UpdateFailed(err) from err
         # Solix is optional + independent: a hiccup must not fail the eufy update.
         try:
