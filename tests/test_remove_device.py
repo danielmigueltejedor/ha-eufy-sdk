@@ -8,8 +8,9 @@ import custom_components.eufy_sdk as integration
 from custom_components.eufy_sdk.const import DOMAIN
 
 
-def _entry(eufy: dict, solix: dict | None = None) -> Mock:
+def _entry(eufy: dict, solix: dict | None = None, *, polled: bool = True) -> Mock:
     entry = Mock()
+    entry.runtime_data.coordinator.last_update_success = polled
     entry.runtime_data.coordinator.data = eufy
     entry.runtime_data.coordinator.solix_devices = solix or {}
     return entry
@@ -39,6 +40,11 @@ class RemoveDeviceTests(unittest.IsolatedAsyncioTestCase):
     async def test_a_solix_serial_is_not_confused_with_a_eufy_one(self):
         entry = _entry({"SB1": {"sn": "SB1"}})
         self.assertTrue(await self._allowed(entry, _device((DOMAIN, "solix:SB1"))))
+
+    async def test_nothing_is_removed_while_the_last_poll_failed(self):
+        entry = _entry({}, polled=False)
+        self.assertFalse(await self._allowed(entry, _device((DOMAIN, "T8030GONE"))))
+        self.assertFalse(await self._allowed(entry, _device((DOMAIN, "solix:SB2"))))
 
     async def test_identifiers_of_other_domains_are_ignored(self):
         entry = _entry({"T8030LIVE": {"sn": "T8030LIVE"}})

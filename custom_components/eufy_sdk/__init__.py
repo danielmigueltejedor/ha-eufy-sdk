@@ -212,8 +212,13 @@ async def async_remove_config_entry_device(
     the device registry with nothing behind it, and without this hook it could never
     be deleted. A device the bridge still lists is refused: it would only come back
     on the next poll. Solix devices (`solix:<sn>`) are checked against the Solix list.
+
+    Nothing is deleted while the last poll failed: the device list is then empty or
+    stale, and every device would read as "no longer reported".
     """
     coordinator = entry.runtime_data.coordinator
+    if not coordinator.last_update_success:
+        return False
     eufy = coordinator.data or {}
     solix = coordinator.solix_devices or {}
     for domain, identifier in device_entry.identifiers:
