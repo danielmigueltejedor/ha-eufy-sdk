@@ -64,6 +64,9 @@
       },
       "light_effect": {
         "name": "Lichteffect"
+      },
+      "current_mode": {
+        "name": "Huidige modus"
       }
     },
     "switch": {

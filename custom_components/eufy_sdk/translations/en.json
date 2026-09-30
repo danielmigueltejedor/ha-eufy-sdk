@@ -64,6 +64,9 @@
       },
       "light_effect": {
         "name": "Light Effect"
+      },
+      "current_mode": {
+        "name": "Current mode"
       }
     },
     "switch": {
